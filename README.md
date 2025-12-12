@@ -10,10 +10,10 @@ Transforming camera coordinates to a unified 2D store map using homography matri
 Generating real-time heatmaps showing customer traffic patterns
 Exporting JSON data for visualization in web/mobile interfaces
 
-Use Cases:
+## Use Cases:
 
-Retail store traffic analysis
-Queue management optimization
-Store layout effectiveness
-Peak hours identification
-Customer behavior insights
+- Retail store traffic analysis
+- Queue management optimization
+- Store layout effectiveness
+- Peak hours identification
+- Customer behavior insights
