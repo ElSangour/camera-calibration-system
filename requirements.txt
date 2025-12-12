@@ -1,0 +1,5 @@
+opencv-python
+numpy
+ultralytics
+python-dotenv
+opencv-python-headless 
