@@ -42,6 +42,7 @@ class PointSelectorWidget(QWidget):
     
     points_changed = pyqtSignal(list)  # Emits list of points when changed
     point_selected = pyqtSignal(int, int)  # Emits when a new point is selected
+    points_complete = pyqtSignal()  # Emits when required points are reached
     
     def __init__(
         self,
@@ -49,6 +50,7 @@ class PointSelectorWidget(QWidget):
         point_color: str = "#00FF00",
         point_radius: int = 8,
         max_points: int = 20,
+        required_points: int = 4,
         parent=None
     ):
         super().__init__(parent)
@@ -57,6 +59,7 @@ class PointSelectorWidget(QWidget):
         self.point_color = QColor(point_color)
         self.point_radius = point_radius
         self.max_points = max_points
+        self.required_points = required_points
         
         self.points: List[Tuple[int, int]] = []
         self.original_image: Optional[QImage] = None
@@ -239,6 +242,10 @@ class PointSelectorWidget(QWidget):
         self._update_display()
         self.points_changed.emit(self.get_points())
         self.point_selected.emit(img_x, img_y)
+        
+        # Check if required points reached
+        if len(self.points) == self.required_points:
+            self.points_complete.emit()
     
     def add_point(self, x: int, y: int):
         """Programmatically add a point"""
@@ -269,11 +276,30 @@ class PointSelectorWidget(QWidget):
         self.points = [(int(p[0]), int(p[1])) for p in points]
         self._update_display()
     
+    def set_required_points(self, count: int):
+        """Set the number of required calibration points"""
+        self.required_points = max(4, min(count, self.max_points))
+        self._update_info()
+    
+    def get_progress(self) -> tuple:
+        """Return (current_points, required_points)"""
+        return (len(self.points), self.required_points)
+    
+    def is_complete(self) -> bool:
+        """Check if required points have been selected"""
+        return len(self.points) >= self.required_points
+    
     def _update_info(self):
-        """Update info label"""
+        """Update info label with progress"""
         count = len(self.points)
-        status = "Ready" if count >= 4 else f"Need {4 - count} more"
-        self.info_label.setText(f"Points: {count} ({status})")
+        if count >= self.required_points:
+            status = "Complete"
+            self.info_label.setStyleSheet("color: #00FF00; font-weight: bold;")
+        else:
+            remaining = self.required_points - count
+            status = f"Need {remaining} more"
+            self.info_label.setStyleSheet("color: #FFAA00;")
+        self.info_label.setText(f"Points: {count}/{self.required_points} ({status})")
     
     def set_point_color(self, color: str):
         """Set point color"""

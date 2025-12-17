@@ -17,15 +17,23 @@ class CameraConfig:
     name: str
     rtsp_url: str
     enabled: bool = True
+    required_points: int = 4  # Number of points required for calibration
     calibration_points_camera: List[List[float]] = field(default_factory=list)  # Points on camera view
     calibration_points_plan: List[List[float]] = field(default_factory=list)    # Corresponding points on floor plan
     homography_matrix: Optional[List[List[float]]] = None
     
     def is_calibrated(self) -> bool:
         """Check if camera has valid calibration"""
-        return (len(self.calibration_points_camera) >= 4 and 
-                len(self.calibration_points_plan) >= 4 and
+        return (len(self.calibration_points_camera) >= self.required_points and 
+                len(self.calibration_points_plan) >= self.required_points and
                 self.homography_matrix is not None)
+    
+    def calibration_progress(self) -> tuple:
+        """Return (current_points, required_points) for progress tracking"""
+        cam_pts = len(self.calibration_points_camera)
+        plan_pts = len(self.calibration_points_plan)
+        current = min(cam_pts, plan_pts)
+        return (current, self.required_points)
 
 
 @dataclass 

@@ -88,6 +88,32 @@ class SetupDialog(QDialog):
         
         camera_layout.addSpacing(10)
         
+        # Calibration points per camera
+        points_layout = QHBoxLayout()
+        points_label = QLabel("Calibration points per camera:")
+        points_layout.addWidget(points_label)
+        
+        self.points_spinbox = QSpinBox()
+        self.points_spinbox.setMinimum(4)
+        self.points_spinbox.setMaximum(20)
+        self.points_spinbox.setValue(6)
+        self.points_spinbox.setToolTip("Minimum 4 points required. More points = better accuracy (recommended: 6-10)")
+        points_layout.addWidget(self.points_spinbox)
+        
+        points_layout.addStretch()
+        camera_layout.addLayout(points_layout)
+        
+        # Points recommendation label
+        points_info = QLabel(
+            "Tip: 4 points minimum, 6-10 recommended for better accuracy.\n"
+            "Points must be identifiable in both camera view and floor plan."
+        )
+        points_info.setStyleSheet("color: #888; font-size: 11px;")
+        points_info.setWordWrap(True)
+        camera_layout.addWidget(points_info)
+        
+        camera_layout.addSpacing(10)
+        
         # Preview of generated URLs
         preview_btn = QPushButton("Preview URLs")
         preview_btn.clicked.connect(self._preview_urls)
@@ -159,6 +185,7 @@ class SetupDialog(QDialog):
         plan_path = self.plan_path_edit.text().strip()
         template = self.url_template_edit.text().strip()
         camera_ids = self._get_camera_ids()
+        required_points = self.points_spinbox.value()
         
         if not store_name:
             QMessageBox.warning(self, "Validation Error", "Please enter a store name.")
@@ -180,7 +207,8 @@ class SetupDialog(QDialog):
         self.config = CalibrationConfig(
             store_name=store_name,
             store_plan_path=plan_path,
-            num_cameras=0
+            num_cameras=0,
+            min_calibration_points=required_points
         )
         self.config.cameras = []
         
@@ -189,7 +217,8 @@ class SetupDialog(QDialog):
             cam = CameraConfig(
                 camera_id=cam_id,
                 name=f"Camera {cam_id}",
-                rtsp_url=url
+                rtsp_url=url,
+                required_points=required_points
             )
             self.config.cameras.append(cam)
         
@@ -593,7 +622,11 @@ class CalibrationMainWindow(QMainWindow):
         cam = self.config.cameras[row]
         self.current_camera_id = cam.camera_id  # Use actual camera_id
         
-        self.camera_title.setText(f"Camera: {cam.name} (ID: {cam.camera_id})")
+        self.camera_title.setText(f"Camera: {cam.name} (ID: {cam.camera_id}) - {cam.required_points} points required")
+        
+        # Set required points for this camera on both widgets
+        self.camera_widget.set_required_points(cam.required_points)
+        self.plan_widget.set_required_points(cam.required_points)
         
         # Clear the camera widget display (will show new camera when connected)
         self.camera_widget.clear_points()
@@ -827,7 +860,13 @@ class CalibrationMainWindow(QMainWindow):
             return
         
         for i, cam in enumerate(self.config.cameras):
-            status = "calibrated" if cam.is_calibrated() else "pending"
+            current, required = cam.calibration_progress()
+            if cam.is_calibrated():
+                status = "calibrated"
+            elif current > 0:
+                status = f"{current}/{required} pts"
+            else:
+                status = "pending"
             self.camera_list.item(i).setText(f"{cam.name} [{status}]")
     
     def _update_status(self):
