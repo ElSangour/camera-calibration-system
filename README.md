@@ -68,7 +68,7 @@ This system transforms multiple camera feeds into actionable analytics by:
 
 ## Project Structure
 
-\`\`\`
+```
 Traffic-Heatmap/
 |-- main_app.py                 # Integrated PyQt6 application
 |
@@ -109,7 +109,7 @@ Traffic-Heatmap/
 |-- requirements.txt            # Python dependencies
 |-- README.md                   # This file
 |-- LICENSE                     # Project license
-\`\`\`
+```
 
 ---
 
@@ -124,14 +124,14 @@ Traffic-Heatmap/
 
 ### Python Dependencies
 
-\`\`\`
+```
 opencv-python>=4.8.0
 numpy>=1.24.0
 ultralytics>=8.0.0
 python-dotenv>=1.0.0
 PyQt6>=6.5.0
 scipy>=1.10.0
-\`\`\`
+```
 
 ---
 
@@ -139,29 +139,29 @@ scipy>=1.10.0
 
 ### 1. Clone the Repository
 
-\`\`\`bash
+```bash
 git clone https://github.com/ElSangour/Traffic-Heatmap.git
 cd Traffic-Heatmap
-\`\`\`
+```
 
 ### 2. Create Virtual Environment
 
-\`\`\`bash
+```bash
 python -m venv .heatmap_env
 source .heatmap_env/bin/activate  # Linux/macOS
 # or
 .heatmap_env\Scripts\activate     # Windows
-\`\`\`
+```
 
 ### 3. Install Dependencies
 
-\`\`\`bash
+```bash
 pip install -r requirements.txt
-\`\`\`
+```
 
 ### 4. Download YOLO Model
 
-The YOLOv8 model will be downloaded automatically on first run, or manually place it in \`models/weights/\`.
+The YOLOv8 model will be downloaded automatically on first run, or manually place it in `models/weights/`.
 
 ---
 
@@ -171,13 +171,13 @@ The YOLOv8 model will be downloaded automatically on first run, or manually plac
 
 Copy the example environment file and configure it:
 
-\`\`\`bash
+```bash
 cp .env.example .env
-\`\`\`
+```
 
-Edit \`.env\` with your settings:
+Edit `.env` with your settings:
 
-\`\`\`dotenv
+```dotenv
 # RTSP Camera Configuration
 RTSP_URL=rtsp://username:password@camera_ip:554/stream
 RTSP_USERNAME=admin
@@ -192,7 +192,7 @@ FLOOR_PLAN_PATH=/path/to/floor_plan.png
 
 # Output Settings
 OUTPUT_DIR=./output
-\`\`\`
+```
 
 ### Available YOLO Models
 
@@ -208,64 +208,52 @@ OUTPUT_DIR=./output
 
 ## Usage
 
-### Integrated Application (Recommended)
+### Test RTSP Connection
 
-Launch the complete application with all features:
+Verify camera connectivity before running detection:
 
-\`\`\`bash
-python main_app.py
-\`\`\`
-
-The integrated application provides three tabs:
-
-1. **Calibration** - Set up camera-to-floor-plan point mappings
-2. **Live Detection** - Run multi-camera person detection
-3. **Heatmap** - Generate and visualize density heatmaps
-
-### Standalone Scripts
-
-#### Test RTSP Connection
-
-\`\`\`bash
+```bash
 python src/test_rtsp_connection.py
-\`\`\`
+```
 
-#### Run Single Camera Detection
+### Run Person Detection
 
-\`\`\`bash
+Start real-time person detection on RTSP stream:
+
+```bash
 python src/yolo_person_detection.py
-\`\`\`
+```
 
-#### Run Multi-Camera Detection
+### Run Multi-Camera Detection
 
-\`\`\`bash
-python src/multi_camera_detector.py \\
-    --calibration calibration_data/homography_matrices_store.json \\
-    --duration 300 \\
+```bash
+python src/multi_camera_detector.py \
+    --calibration calibration_data/homography_matrices_store.json \
+    --duration 300 \
     --output output/detections.json
-\`\`\`
+```
 
-#### Generate Heatmap
+### Generate Heatmap
 
-\`\`\`bash
-python src/heatmap_generator.py \\
-    -i output/detections.json \\
-    -p /path/to/floor_plan.png \\
-    -o output/heatmap.png \\
+```bash
+python src/heatmap_generator.py \
+    -i output/detections.json \
+    -p /path/to/floor_plan.png \
+    -o output/heatmap.png \
     --preview
-\`\`\`
+```
 
 ---
 
 ## Integrated Application
 
-The main application (\`main_app.py\`) provides a unified interface for the complete workflow.
+The main application provides a unified interface for the complete workflow with three tabs.
 
-### Launching
+### Launch Application
 
-\`\`\`bash
+```bash
 python main_app.py
-\`\`\`
+```
 
 ### Tab 1: Calibration
 
@@ -296,17 +284,17 @@ python main_app.py
 
 The calibration system maps camera views to floor plan coordinates using homography transformation.
 
-### Standalone Calibration App
+### Launch Calibration App
 
-\`\`\`bash
+```bash
 python calibration_system/calibration_app.py
-\`\`\`
+```
 
 ### Calibration Workflow
 
 1. **Setup Configuration**
    - Enter location/store name
-   - Provide RTSP URL template with \`{camera_id}\` placeholder
+   - Provide RTSP URL template with `{camera_id}` placeholder
    - Enter camera IDs (comma-separated)
    - Select number of calibration points per camera (4-20)
    - Load floor plan image
@@ -334,12 +322,12 @@ python calibration_system/calibration_app.py
 
 ### Output Files
 
-\`\`\`
+```
 calibration_data/
 |-- calibration_{name}_{timestamp}.json    # Full calibration data
 |-- homography_matrices_{name}.json        # Matrices for detection
 |-- snapshots/                             # Camera frame captures
-\`\`\`
+```
 
 ---
 
@@ -349,22 +337,22 @@ The detection system processes multiple RTSP streams concurrently using YOLO.
 
 ### Command Line Usage
 
-\`\`\`bash
-python src/multi_camera_detector.py \\
-    --calibration calibration_data/homography_matrices_store.json \\
-    --duration 600 \\
-    --confidence 0.5 \\
+```bash
+python src/multi_camera_detector.py \
+    --calibration calibration_data/homography_matrices_store.json \
+    --duration 600 \
+    --confidence 0.5 \
     --output output/detections.json
-\`\`\`
+```
 
 ### Parameters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| \`--calibration\` | Path to homography matrices JSON | Required |
-| \`--duration\` | Detection duration in seconds | 300 |
-| \`--confidence\` | YOLO confidence threshold | 0.5 |
-| \`--output\` | Output JSON file path | Auto-generated |
+| `--calibration` | Path to homography matrices JSON | Required |
+| `--duration` | Detection duration in seconds | 300 |
+| `--confidence` | YOLO confidence threshold | 0.5 |
+| `--output` | Output JSON file path | Auto-generated |
 
 ### Detection Process
 
@@ -377,7 +365,7 @@ python src/multi_camera_detector.py \\
 
 ### Output Format
 
-\`\`\`json
+```json
 {
   "metadata": {
     "start_time": "2025-12-17T14:00:00",
@@ -395,7 +383,7 @@ python src/multi_camera_detector.py \\
     }
   ]
 }
-\`\`\`
+```
 
 ---
 
@@ -405,36 +393,36 @@ Generate density heatmaps from detection data.
 
 ### Command Line Usage
 
-\`\`\`bash
-python src/heatmap_generator.py \\
-    -i output/detections.json \\
-    -p /path/to/floor_plan.png \\
-    -o output/heatmap.png \\
-    --colormap jet \\
-    --alpha 0.6 \\
-    --sigma 20 \\
+```bash
+python src/heatmap_generator.py \
+    -i output/detections.json \
+    -p /path/to/floor_plan.png \
+    -o output/heatmap.png \
+    --colormap jet \
+    --alpha 0.6 \
+    --sigma 20 \
     --preview
-\`\`\`
+```
 
 ### Parameters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| \`-i, --input\` | Detection JSON file | Required |
-| \`-p, --plan\` | Floor plan image path | Auto-detect |
-| \`-o, --output\` | Output heatmap path | Auto-generated |
-| \`--colormap\` | OpenCV colormap name | jet |
-| \`--alpha\` | Heatmap overlay transparency | 0.6 |
-| \`--sigma\` | Gaussian smoothing sigma | 20.0 |
-| \`--preview\` | Show preview window | False |
+| `-i, --input` | Detection JSON file | Required |
+| `-p, --plan` | Floor plan image path | Auto-detect |
+| `-o, --output` | Output heatmap path | Auto-generated |
+| `--colormap` | OpenCV colormap name | jet |
+| `--alpha` | Heatmap overlay transparency | 0.6 |
+| `--sigma` | Gaussian smoothing sigma | 20.0 |
+| `--preview` | Show preview window | False |
 
 ### Available Colormaps
 
-- \`jet\` - Blue to red (default)
-- \`hot\` - Black to white through red
-- \`inferno\` - Purple to yellow
-- \`viridis\` - Purple to green to yellow
-- \`plasma\` - Purple to orange to yellow
+- `jet` - Blue to red (default)
+- `hot` - Black to white through red
+- `inferno` - Purple to yellow
+- `viridis` - Purple to green to yellow
+- `plasma` - Purple to orange to yellow
 
 ### Heatmap Process
 
@@ -450,7 +438,7 @@ python src/heatmap_generator.py \\
 
 ### MultiCameraDetector
 
-\`\`\`python
+```python
 from src.multi_camera_detector import MultiCameraDetector
 
 # Initialize with calibration file
@@ -467,11 +455,11 @@ detections = detector.get_detections()
 
 # Save to file
 detector.save_detections("output/detections.json")
-\`\`\`
+```
 
 ### HeatmapGenerator
 
-\`\`\`python
+```python
 from src.heatmap_generator import HeatmapGenerator
 
 # Initialize with floor plan
@@ -490,11 +478,11 @@ heatmap = generator.generate()
 
 # Save result
 generator.save("output/heatmap.png")
-\`\`\`
+```
 
 ### HomographyCalculator
 
-\`\`\`python
+```python
 from calibration_system.homography import HomographyCalculator
 
 calc = HomographyCalculator()
@@ -506,11 +494,11 @@ if result.is_valid:
     # Transform point from camera to plan
     plan_point = calc.transform_point(camera_point, result.matrix)
     print(f"Reprojection error: {result.reprojection_error:.2f}px")
-\`\`\`
+```
 
 ### YOLOPersonDetector
 
-\`\`\`python
+```python
 from models import YOLOPersonDetector
 
 # Initialize detector
@@ -526,7 +514,7 @@ detections = detector.detect_persons(frame)
 # - bbox: (x1, y1, x2, y2)
 # - confidence: float
 # - class_id: int (0 for person)
-\`\`\`
+```
 
 ---
 
@@ -534,9 +522,9 @@ detections = detector.detect_persons(frame)
 
 ### RTSP Connection Issues
 
-\`\`\`
+```
 [ERROR] Cannot connect to RTSP stream
-\`\`\`
+```
 
 Solutions:
 - Verify camera IP address and credentials
@@ -547,31 +535,31 @@ Solutions:
 
 ### YOLO Model Not Found
 
-\`\`\`
+```
 [ERROR] Model not found
-\`\`\`
+```
 
 Solutions:
 - Run detection script once to auto-download
-- Manually download model to \`models/weights/\`
+- Manually download model to `models/weights/`
 - Check internet connectivity for auto-download
 
 ### Qt Display Issues
 
-\`\`\`
+```
 qt.qpa.xcb: could not connect to display
-\`\`\`
+```
 
 Solutions:
-- Ensure X11 forwarding if using SSH (\`ssh -X\`)
-- Set \`DISPLAY\` environment variable
-- Use \`export QT_QPA_PLATFORM=offscreen\` for headless operation
+- Ensure X11 forwarding if using SSH (`ssh -X`)
+- Set `DISPLAY` environment variable
+- Use `export QT_QPA_PLATFORM=offscreen` for headless operation
 
 ### Homography Calculation Failed
 
-\`\`\`
+```
 [ERROR] Could not calculate homography matrix
-\`\`\`
+```
 
 Solutions:
 - Ensure at least 4 point pairs are selected
@@ -592,9 +580,9 @@ Solutions:
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (\`git checkout -b feature/new-feature\`)
-3. Commit changes (\`git commit -am 'Add new feature'\`)
-4. Push to branch (\`git push origin feature/new-feature\`)
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Commit changes (`git commit -am 'Add new feature'`)
+4. Push to branch (`git push origin feature/new-feature`)
 5. Create Pull Request
 
 ---
