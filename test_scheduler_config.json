@@ -1,0 +1,36 @@
+{
+  "schedules": {
+    "test_store": {
+      "store_name": "test_store",
+      "enabled": true,
+      "start_time": "09:00",
+      "end_time": "22:00",
+      "days_of_week": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "duration_minutes": 60,
+      "frame_skip": 1,
+      "confidence_threshold": 0.5,
+      "export_enabled": true,
+      "output_format": "json",
+      "webhook_url": "",
+      "webhook_enabled": false,
+      "retry_count": 3,
+      "timeout_seconds": 1800,
+      "api_token": ""
+    }
+  },
+  "redis_host": "localhost",
+  "redis_port": 6379,
+  "redis_db": 0,
+  "log_level": "INFO",
+  "log_file": "logs/production.log",
+  "enable_monitoring": true,
+  "alert_email": ""
+}

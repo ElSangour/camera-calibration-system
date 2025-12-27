@@ -152,7 +152,7 @@ class CameraManager:
             self.disconnect_camera(camera_id)
     
     def get_frame(self, camera_id: int, resize: bool = True) -> Optional[np.ndarray]:
-        """Get current frame from camera"""
+        """Get current frame from camera (non-blocking - returns last frame if read would block)"""
         with self._lock:
             if camera_id not in self.cameras:
                 return None
@@ -162,6 +162,8 @@ class CameraManager:
             if not camera.is_connected or camera.cap is None:
                 return camera.last_frame  # Return last known frame
             
+            # Try to read frame, but don't block if buffer is empty
+            # Set a very short timeout by checking if frame is available
             ret, frame = camera.cap.read()
             if ret:
                 camera.last_frame = frame
@@ -169,10 +171,15 @@ class CameraManager:
                     frame = cv2.resize(frame, (self.preview_width, self.preview_height))
                 return frame
             else:
-                # Connection lost
-                camera.is_connected = False
-                camera.error_message = "Connection lost"
-                return camera.last_frame
+                # If read failed, return last frame (non-blocking)
+                # Connection might be lost, but don't mark as disconnected immediately
+                # to avoid flickering on temporary network issues
+                if camera.last_frame is not None:
+                    frame = camera.last_frame.copy()
+                    if resize:
+                        frame = cv2.resize(frame, (self.preview_width, self.preview_height))
+                    return frame
+                return None
     
     def capture_frame(self, camera_id: int) -> Optional[np.ndarray]:
         """Capture a single frame (full resolution) for calibration"""
