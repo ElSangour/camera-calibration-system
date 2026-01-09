@@ -1,4 +1,4 @@
-# Traffic Heatmap - Multi-Camera Vision System
+# Camera calibration system (with Heatmpa feature)
 
 Real-time customer traffic analysis system that processes multiple RTSP camera streams to generate unified heatmaps on a 2D floor plan using computer vision and homography transformation.
 
