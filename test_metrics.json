@@ -1,0 +1,14 @@
+{
+  "start_time": "2025-12-21T19:31:28.748944",
+  "total_jobs_processed": 1,
+  "total_jobs_failed": 0,
+  "total_detections": 150,
+  "total_api_posts": 1,
+  "successful_api_posts": 1,
+  "failed_api_posts": 0,
+  "last_error": "Test error message",
+  "last_error_time": "2025-12-21T19:31:28.749205",
+  "uptime_seconds": 0,
+  "success_rate": 100.0,
+  "api_success_rate": 100.0
+}

@@ -4,3 +4,7 @@ ultralytics==8.3.236
 python-dotenv==1.2.0
 opencv-python-headless==4.12.0.88
 PyQt6==6.10.1
+redis==7.1.0
+rq==1.14.1               
+requests==2.31.0         
+python-dateutil==2.8.2 

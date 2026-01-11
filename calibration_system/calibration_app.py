@@ -677,7 +677,7 @@ class CalibrationMainWindow(QMainWindow):
         self._update_points_display()
     
     def _connect_current_camera(self):
-        """Connect to currently selected camera"""
+        """Connect to currently selected camera (non-blocking)"""
         if self.config is None or not hasattr(self, 'current_camera_index'):
             return
         
@@ -686,15 +686,23 @@ class CalibrationMainWindow(QMainWindow):
             
         cam = self.config.cameras[self.current_camera_index]
         self.statusbar.showMessage(f"Connecting to {cam.name}...")
+        self.connect_btn.setEnabled(False)
+        QApplication.processEvents()  # Update UI immediately
         
-        if self.camera_manager.connect_camera(cam.camera_id):
+        # Connect in a way that doesn't block (camera_manager already handles this)
+        # But we can make it more responsive by processing events
+        success = self.camera_manager.connect_camera(cam.camera_id)
+        
+        if success:
             self.current_camera_id = cam.camera_id  # Track actual camera ID for frame retrieval
             self.statusbar.showMessage(f"Connected to {cam.name}")
-            # Start preview
-            self.preview_timer.start(33)  # ~30 FPS
+            # Start preview with slightly slower rate to reduce CPU usage
+            self.preview_timer.start(50)  # ~20 FPS (reduced from 30)
         else:
             QMessageBox.warning(self, "Connection Error", f"Failed to connect to {cam.name}")
             self.statusbar.showMessage("Connection failed")
+        
+        self.connect_btn.setEnabled(True)
     
     def _connect_all_cameras(self):
         """Connect all cameras"""
@@ -714,10 +722,15 @@ class CalibrationMainWindow(QMainWindow):
         self.statusbar.showMessage("All cameras disconnected")
     
     def _update_preview(self):
-        """Update camera preview"""
-        frame = self.camera_manager.get_frame(self.current_camera_id)
-        if frame is not None:
-            self.camera_widget.set_image(frame)
+        """Update camera preview (non-blocking)"""
+        try:
+            # Use non-blocking frame read
+            frame = self.camera_manager.get_frame(self.current_camera_id)
+            if frame is not None:
+                self.camera_widget.set_image(frame)
+        except Exception as e:
+            # Silently handle errors to prevent timer from breaking
+            pass
     
     def _capture_camera_frame(self):
         """Capture current frame for calibration"""

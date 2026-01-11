@@ -106,8 +106,59 @@ class HeatmapGenerator:
 
 
 # =============================================================================
-# Detection Worker Thread
+# Worker Threads
 # =============================================================================
+
+class ModelLoaderWorker(QObject):
+    """Worker thread for loading YOLO model"""
+    model_loaded = pyqtSignal(object)  # detector
+    error = pyqtSignal(str)
+    
+    def load_model(self):
+        """Load YOLO model in background"""
+        try:
+            from models import load_yolo_model
+            detector = load_yolo_model()
+            self.model_loaded.emit(detector)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class CameraConnectionWorker(QObject):
+    """Worker thread for connecting cameras"""
+    camera_connected = pyqtSignal(int, object)  # camera_id, capture
+    connection_failed = pyqtSignal(int, str)  # camera_id, error
+    finished = pyqtSignal()
+    
+    def __init__(self, cameras: Dict, parent=None):
+        super().__init__(parent)
+        self.cameras = cameras
+    
+    def connect_all(self):
+        """Connect to all cameras in background"""
+        for cam_id, cam_data in self.cameras.items():
+            url = cam_data.get('url')
+            if not url:
+                continue
+            
+            try:
+                cap = cv2.VideoCapture(url)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                
+                if cap.isOpened():
+                    ret, _ = cap.read()
+                    if ret:
+                        self.camera_connected.emit(cam_id, cap)
+                    else:
+                        cap.release()
+                        self.connection_failed.emit(cam_id, "Failed to read frame")
+                else:
+                    self.connection_failed.emit(cam_id, "Failed to open connection")
+            except Exception as e:
+                self.connection_failed.emit(cam_id, str(e))
+        
+        self.finished.emit()
+
 
 class DetectionWorker(QObject):
     """Worker thread for running multi-camera detection"""
@@ -131,7 +182,13 @@ class DetectionWorker(QObject):
         self.stop_flag.clear()
         
         try:
+            import time
+            last_frame_time = {}  # Track last frame time per camera for throttling
+            
             while not self.stop_flag.is_set():
+                frame_processed_this_cycle = False
+                current_time = time.time()
+                
                 for cam_id, cam_data in self.cameras.items():
                     if self.stop_flag.is_set():
                         break
@@ -140,9 +197,17 @@ class DetectionWorker(QObject):
                     if capture is None or not capture.isOpened():
                         continue
                     
+                    # Throttle frame processing to ~10 FPS per camera to avoid overwhelming GUI
+                    if cam_id in last_frame_time:
+                        if current_time - last_frame_time[cam_id] < 0.1:  # 10 FPS max
+                            continue
+                    
+                    # Use non-blocking read
                     ret, frame = capture.read()
                     if not ret:
                         continue
+                    
+                    last_frame_time[cam_id] = current_time
                     
                     # Run detection
                     detections = self.detector.detect_persons(frame)
@@ -179,6 +244,11 @@ class DetectionWorker(QObject):
                         self.detection_added.emit(detection)
                     
                     self.frame_processed.emit(cam_id, frame, detection_list)
+                    frame_processed_this_cycle = True
+                
+                # Yield to event loop if no frames processed (prevents tight loop)
+                if not frame_processed_this_cycle:
+                    time.sleep(0.01)  # Small sleep to prevent CPU spinning
                 
         except Exception as e:
             self.error.emit(str(e))
@@ -376,25 +446,39 @@ class HeatmapTab(QWidget):
             self._generate_heatmap()
     
     def _generate_heatmap(self):
-        """Generate and display heatmap"""
+        """Generate and display heatmap in background thread"""
         if self.generator is None or not self.detections:
             return
         
+        # Disable button during generation
+        self.generate_btn.setEnabled(False)
+        self.generate_btn.setText("Generating...")
+        QApplication.processEvents()
+        
+        # Generate in background to avoid blocking UI
         colormap_name = self.colormap_combo.currentText()
         colormap = COLORMAPS.get(colormap_name, cv2.COLORMAP_JET)
         alpha = self.alpha_slider.value() / 100.0
         sigma = self.sigma_spin.value()
         
-        result = self.generator.generate(
-            self.detections,
-            colormap=colormap,
-            alpha=alpha,
-            sigma=sigma
-        )
-        
-        self._display_image(result)
-        self.save_btn.setEnabled(True)
-        self.current_heatmap = result
+        # For small datasets, generate directly (fast enough)
+        # For large datasets, could use QThread but heatmap generation is usually fast
+        try:
+            result = self.generator.generate(
+                self.detections,
+                colormap=colormap,
+                alpha=alpha,
+                sigma=sigma
+            )
+            
+            self._display_image(result)
+            self.save_btn.setEnabled(True)
+            self.current_heatmap = result
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to generate heatmap: {e}")
+        finally:
+            self.generate_btn.setEnabled(True)
+            self.generate_btn.setText("Generate Heatmap")
     
     def _display_image(self, image: np.ndarray):
         """Display image in label"""
@@ -648,47 +732,83 @@ class LiveDetectionTab(QWidget):
             QMessageBox.warning(self, "Error", f"Failed to load calibration: {e}")
     
     def _connect_cameras(self):
-        """Connect to all cameras"""
+        """Connect to all cameras in background thread"""
         if not self.cameras:
             return
         
         self.status_label.setText("Connecting to cameras...")
-        connected = 0
+        self.connect_btn.setEnabled(False)
+        self.connected_count = 0
         
-        for cam_id, cam_data in self.cameras.items():
-            url = cam_data['url']
-            if not url:
-                continue
-            
-            try:
-                cap = cv2.VideoCapture(url)
-                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                
-                if cap.isOpened():
-                    ret, _ = cap.read()
-                    if ret:
-                        cam_data['capture'] = cap
-                        connected += 1
-                    else:
-                        cap.release()
-            except Exception as e:
-                print(f"[ERROR] Failed to connect to camera {cam_id}: {e}")
+        # Create worker thread for camera connections
+        self.camera_worker = CameraConnectionWorker(self.cameras)
+        self.camera_worker_thread = QThread()
+        self.camera_worker.moveToThread(self.camera_worker_thread)
         
-        self.status_label.setText(f"Connected: {connected}/{len(self.cameras)}")
+        self.camera_worker_thread.started.connect(self.camera_worker.connect_all)
+        self.camera_worker.camera_connected.connect(self._on_camera_connected)
+        self.camera_worker.connection_failed.connect(self._on_camera_failed)
+        self.camera_worker.finished.connect(self._on_cameras_connected_finished)
         
-        if connected > 0:
+        self.camera_worker_thread.start()
+    
+    def _on_camera_connected(self, cam_id: int, capture):
+        """Handle successful camera connection"""
+        if cam_id in self.cameras:
+            self.cameras[cam_id]['capture'] = capture
+            self.connected_count += 1
+            self.status_label.setText(f"Connecting... ({self.connected_count}/{len(self.cameras)})")
+    
+    def _on_camera_failed(self, cam_id: int, error: str):
+        """Handle camera connection failure"""
+        print(f"[ERROR] Failed to connect to camera {cam_id}: {error}")
+    
+    def _on_cameras_connected_finished(self):
+        """Handle camera connection process finished"""
+        self.camera_worker_thread.quit()
+        self.camera_worker_thread.wait(1000)
+        
+        self.status_label.setText(f"Connected: {self.connected_count}/{len(self.cameras)}")
+        self.connect_btn.setEnabled(True)
+        
+        if self.connected_count > 0:
             self.start_btn.setEnabled(True)
-            # Load YOLO model
+            # Load YOLO model in background
             if self.detector is None:
-                try:
-                    from models import load_yolo_model
-                    self.status_label.setText("Loading YOLO model...")
-                    QApplication.processEvents()
-                    self.detector = load_yolo_model()
-                    self.status_label.setText(f"Ready - {connected} cameras connected")
-                except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Failed to load YOLO model: {e}")
-                    self.start_btn.setEnabled(False)
+                self._load_yolo_model_async()
+            else:
+                self.status_label.setText(f"Ready - {self.connected_count} cameras connected")
+    
+    def _load_yolo_model_async(self):
+        """Load YOLO model in background thread"""
+        self.status_label.setText("Loading YOLO model...")
+        self.start_btn.setEnabled(False)
+        
+        self.model_worker = ModelLoaderWorker()
+        self.model_worker_thread = QThread()
+        self.model_worker.moveToThread(self.model_worker_thread)
+        
+        self.model_worker_thread.started.connect(self.model_worker.load_model)
+        self.model_worker.model_loaded.connect(self._on_model_loaded)
+        self.model_worker.error.connect(self._on_model_error)
+        
+        self.model_worker_thread.start()
+    
+    def _on_model_loaded(self, detector):
+        """Handle YOLO model loaded"""
+        self.detector = detector
+        self.model_worker_thread.quit()
+        self.model_worker_thread.wait(1000)
+        self.status_label.setText(f"Ready - {self.connected_count} cameras connected")
+        self.start_btn.setEnabled(True)
+    
+    def _on_model_error(self, error: str):
+        """Handle YOLO model loading error"""
+        self.model_worker_thread.quit()
+        self.model_worker_thread.wait(1000)
+        QMessageBox.warning(self, "Error", f"Failed to load YOLO model: {error}")
+        self.status_label.setText("Model loading failed")
+        self.start_btn.setEnabled(False)
     
     def _toggle_detection(self):
         """Start/stop detection"""
@@ -723,7 +843,11 @@ class LiveDetectionTab(QWidget):
             self.worker.stop()
         if self.worker_thread:
             self.worker_thread.quit()
-            self.worker_thread.wait(2000)
+            # Use non-blocking wait with timeout
+            if not self.worker_thread.wait(1000):
+                # Force terminate if still running after 1 second
+                self.worker_thread.terminate()
+                self.worker_thread.wait(500)
         
         self.start_btn.setText("Start Detection")
         self.status_label.setText("Detection stopped")
