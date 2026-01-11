@@ -218,3 +218,5 @@ models/weights/*.h5
 calibration_data/*
 src/output/*
 output/
+
+logs/
